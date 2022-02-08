@@ -5,7 +5,7 @@ date: "`r format(Sys.time(), '%d %B, %Y')`"
 output: html_document
 ---
 
-```{r setup, warning=F,message=F}
+```{r setup, warning=F,message=F, echo=FALSE}
 library(tidyverse)
 library(tidyr)
 library(ggthemes)
@@ -13,13 +13,16 @@ library(lubridate)
 library(dplyr)
 library(tibbletime)
 library(ggplot2)
+library(ggpubr)
 library(hrbrthemes)
 library(viridis)
 
 knitr::opts_knit$set(root.dir='C:/Users/DClev/OneDrive/Classes/ESS580/0203_FireWrangle/2_fire_data_wrangle')
 ```
 
-### Now that we have learned how to munge (manipulate) data and plot it, we will work on using these skills in new ways
+
+##### Now that we have learned how to munge (manipulate) data and plot it, we will work on using these skills in new ways
+
 
 ```{r dataread, warning=F,message=F}
 ####-----Reading in Data and Stacking it ----- ####
@@ -68,12 +71,19 @@ summer_only <- filter(full_wide,month %in% c(6,7,8,9))
 
 ggplot(summer_only,aes(x=ndmi,y=ndvi,color=treatment)) + 
   geom_point() + 
+  geom_smooth(method = "lm", se = FALSE)+
+  stat_cor()+
+  ylim(0, 0.7)+
   theme_few() + 
   scale_color_colorblind() + 
   theme(legend.position=c(0.9,0.85))
 ```
 
-As can be seen in the above plot, an increase in NDVI is generally associated with an increase in NDMI.  While this relationship is apparent for both the unburned and burned treatments, it is more clearly seen in the data from the burned treatment.
+
+As can be seen in the above plot, an increase in NDMI is generally associated with an increase in NDVI.  While this relationship is apparent for both the unburned and burned treatments, it is more clearly seen in the data from the burned treatment.  The R value for the burned treatment (R = 0.71) is greater than that of the unburned treatment (R = 0.17).
+
+___
+
 
 
 ## Question 2 
@@ -166,6 +176,8 @@ lastspread <- spread(bind_again, key = 'trt', value = 'index')
 ## plotting the data
 ggplot(lastspread,aes(x=NDSI2,y=NDVI2,color=burn_stat)) + 
   geom_point() + 
+  geom_smooth(method = lm) +
+  stat_cor() +
   theme_few() + 
   scale_color_colorblind(name= "Treatment") + 
   theme(legend.position=c(0.9,0.15)) +
@@ -173,7 +185,10 @@ ggplot(lastspread,aes(x=NDSI2,y=NDVI2,color=burn_stat)) +
   
 ```
 
-Based on the above plot, there does not appear to be a strong relationship between snowfall over the winter and vegetation growth the following summer, especially for the unburned treatment.  However, there may be some association between an increase in winter snowfall and an increase in vegetation for the burned treatment.
+Based on the above plot, there does not appear to be a strong relationship between snowfall over the winter and vegetation growth the following summer, especially for the unburned treatment.  Based on the above plot alone, we might at first conclude that any association between an increase in winter snowfall and an increase in vegetation is higher for the burned treatment.  However, this would likely be a mistake, as this data contains both pre-burn and post-burn data, and the average NDVI values dramatically dropped after the burn.  That drop can be seen in the above data, with point above the burned regression line likely representing pre-burn, and those below likely representing post-burn.  Without that drop in NDVI due to the burn treatment, or taking each treatment separately, we would likely see that the burned plot region has a similarly low, even negative, R value as the unburned plot.  We will examine this more closely in the following figure.
+
+___
+
 
 
 ## Q3
@@ -238,6 +253,8 @@ preNpost <- rbind(ndvi3_preburn, ndvi3_postburn, ndsi3_preburn, ndsi3_postburn)%
 
 ggplot(preNpost, aes(x = NDSI, y = NDVI, color = time_period)) +
   geom_point()+
+  geom_smooth(method = lm)+
+  stat_cor()+
   theme_few()+
   scale_color_colorblind(name= "Time Period")+
   theme(legend.position = c(0.9, 0.15)) +
@@ -245,7 +262,11 @@ ggplot(preNpost, aes(x = NDSI, y = NDVI, color = time_period)) +
 
 ```
 
-In analyzing the relationship between average winter snowfall and average summer vegetation growth explicitly for the burned plot, we do not see a strong association.  Trendlines for both pre-fire and post-fire data show have slopes near zero.  However, we are able to see a clear drop in average summer NDVI values after the fire.
+In analyzing the relationship between average winter snowfall and average summer vegetation growth explicitly for the burned plot, we do not see a strong association.  Trendlines for both pre-fire and post-fire data show have slopes near zero.  However, we are able to see a clear drop in average summer NDVI values after the fire.  While the association between NDVI and NDSI is most likely slightly positive for the pre-burn time period, the relationship looks to most likely have become slightly negative after the fire.
+
+___
+
+
 
 
 ## Question 4
@@ -306,6 +327,14 @@ ggplot(topNDVI4, aes(x = reorder(Month,veg_index), y= veg_index)) +
     facet_wrap(~treatment)
 
 ```
+
+The above bar chart shows how average monthly NDVI values differ between the burned and unburned plots.  September and August are on average the two greenest months for both plots, but September is slightly greener on the unburned plot, while August is slightly greener on the burned plot.  
+
+Taking a closer a look at the distribution of the data, which can be seen in the above boxplots, a clear break can be seen in the burned plot's data.  This break most certainly corresponds to the drop in NDVI that occurred after the fire.  Therefore, to properly analyze which month is greenest in the burned plot, it is best to analyze its greenest after the fire separately from greenness before the fire.
+
+___
+
+
 
 
 ## Question 5) 
@@ -369,14 +398,20 @@ ggplot(topNDSI5, aes(x = reorder(Month,snow_index), y= snow_index)) +
 ```
 
 
-After organizing the data for each region according to month and plotting monthly NDSI distributions and mean values in the above boxplots, we can see that the snowiest months differ between regions.  January is the snowiest month on average in the burned region, whereas February is the snowiest month on average in the unburned region.   
+After organizing the data for each region according to month and plotting monthly NDSI distributions and mean values in the above boxplots, we can see that the snowiest months differ between regions.  January is the snowiest month on average in the burned region, whereas February is the snowiest month on average in the unburned region.  
+
+Again, taking a closer a look at the distribution of the data, which can be seen in the above boxplots, a clear break can be seen in the burned plot's data, especially for the snowiest months of December, January, and February.  This break likely also corresponds to the vegetation loss and ecosystem change that occurred after the fire.  Therefore, to properly analyze which month is snowiest in the burned plot, it is best to analyze its snow index after the fire separately from before the fire.
 
 
 
-## Bonus Question: Redo all problems with `spread` and `gather` using modern tidyverse syntax. 
 
 
-## Bonus Question: Use Climage Engine to pull the same data for the assignment, but updated with 2020/2021 data.
+___
+
+##### Bonus Question: Redo all problems with `spread` and `gather` using modern tidyverse syntax. 
+
+
+##### Bonus Question: Use Climage Engine to pull the same data for the assignment, but updated with 2020/2021 data.
 
 
 
